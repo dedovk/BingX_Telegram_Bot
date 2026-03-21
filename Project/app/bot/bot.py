@@ -7,7 +7,8 @@ from aiogram.fsm.state import StatesGroup, State
 from loguru import logger
 
 from app.core.config import settings
-from app.core.security import verify_pin
+from app.core.security import verify_pin, verify_totp
+from app.bot.middleware.auth import IDAuthMiddleware
 
 bot = Bot(token=settings.BOT_TOKEN)
 dp = Dispatcher()
@@ -16,8 +17,8 @@ router = Router()
 
 
 class AuthState(StatesGroup):
-    waiting_for_pin = State()  # bot waiting for entered PIN
-    waiting_for_totp = State()
+    waiting_for_pin = State()  # bot waiting for enter PIN
+    waiting_for_totp = State()  # bot waiting for enter TOTP code
     unlocked = State()  # bot unlocked and ready to work
 
 
@@ -35,6 +36,8 @@ async def cmd_cancel(message: types.Message, state: FSMContext):
 
 @router.message(Command("unlock"))
 async def cmd_unlock(message: types.Message, state: FSMContext):
+    logger.info(
+        f"User(ID: {message.from_user.id}, Username: {message.from_user.username}) trying to unlock the bot")
     """command for start unlocking"""
     await message.answer("Bot blocked. Enter PIN:")
     # transfer the user to the PIN code waiting time
@@ -55,11 +58,10 @@ async def process_pin(message: types.Message, state: FSMContext):
 
     if is_valid:
         logger.info(
-            f"User(ID: {message.from_user.id}, Username: {message.from_user.username}) successfully unblocked the bot")
+            f"User(ID: {message.from_user.id}, Username: {message.from_user.username}) enter the correct pin ")
         await message.answer("PIN code accept. Enter a 6-digit code from Microsoft Authenticator: ")
         await state.set_state(AuthState.waiting_for_totp)
-        # put into unlocked state
-        await state.set_state(AuthState.unlocked)
+        # put into waiting_for_totp state
     else:
         logger.warning(
             f"Wrong PIN code from User(ID: {message.from_user.id}, Username: {message.from_user.username})")
@@ -82,6 +84,10 @@ async def process_totp(message: types.Message, state: FSMContext):
             f"User(ID: {message.from_user.id}, Username: {message.from_user.username}) passed 2FA.")
         await message.answer("2FA passed.")
         await state.set_state(AuthState.unlocked)
+    else:
+        logger.warning(
+            f"User(ID: {message.from_user.id}, Username: {message.from_user.username}) enter wrong TOTP code.")
+        await message.answer("Wrong 2FA code. Try again or click /cancel")
 
 
 @router.message(Command("lock"))
@@ -95,7 +101,7 @@ dp.include_router(router)
 
 async def main():
     logger.info("Bot is running.")
-
+    dp.message.middleware(IDAuthMiddleware())
     await dp.start_polling(bot)
 
 if __name__ == '__main__':
