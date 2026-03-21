@@ -17,7 +17,20 @@ router = Router()
 
 class AuthState(StatesGroup):
     waiting_for_pin = State()  # bot waiting for entered PIN
+    waiting_for_totp = State()
     unlocked = State()  # bot unlocked and ready to work
+
+
+@router.message(Command("cancel"))
+async def cmd_cancel(message: types.Message, state: FSMContext):
+    """command for cancel auth state"""
+    current_state = await state.get_state()
+    if current_state is None:
+        return
+    logger.info(
+        f"User(ID: {message.from_user.id}, Username: {message.from_user.username}) cancelled auth process.")
+    await state.clear()
+    await message.answer("Authorization cancelled.")
 
 
 @router.message(Command("unlock"))
@@ -43,14 +56,32 @@ async def process_pin(message: types.Message, state: FSMContext):
     if is_valid:
         logger.info(
             f"User(ID: {message.from_user.id}, Username: {message.from_user.username}) successfully unblocked the bot")
-        await message.answer("PIN code accept. Access is open.")
-        # put into unblocked state
+        await message.answer("PIN code accept. Enter a 6-digit code from Microsoft Authenticator: ")
+        await state.set_state(AuthState.waiting_for_totp)
+        # put into unlocked state
         await state.set_state(AuthState.unlocked)
     else:
         logger.warning(
             f"Wrong PIN code from User(ID: {message.from_user.id}, Username: {message.from_user.username})")
         await message.answer("Wrong PIN code. Try again or click /cancel")
         # dont change the state, bot still waiting for PIN
+
+
+@router.message(AuthState.waiting_for_totp)
+async def process_totp(message: types.Message, state: FSMContext):
+    user_code = message.text.replace(" ", "")
+    is_valid = verify_totp(settings.TOTP_SECRET, user_code)
+
+    try:
+        await message.delete()
+    except Exception as e:
+        logger.error(f"Failed to delete message with TOTP code: {e}")
+
+    if is_valid:
+        logger.info(
+            f"User(ID: {message.from_user.id}, Username: {message.from_user.username}) passed 2FA.")
+        await message.answer("2FA passed.")
+        await state.set_state(AuthState.unlocked)
 
 
 @router.message(Command("lock"))
