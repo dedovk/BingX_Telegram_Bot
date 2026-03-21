@@ -1,4 +1,6 @@
 import bcrypt
+import pyotp
+
 from cryptography.fernet import Fernet
 
 
@@ -29,3 +31,12 @@ def decrypt_secret(encrypted_data: str, master_key: str) -> str:
     """decode back to string"""
     f = Fernet(master_key.encode())
     return f.decrypt(encrypted_data.encode()).decode()
+
+
+def verify_totp(secret: str, user_code: str) -> bool:
+    """check whether entered TOTP code matches with real time hash """
+    try:
+        totp = pyotp.TOTP(secret)
+        return totp.verify(user_code)
+    except Exception:
+        return False

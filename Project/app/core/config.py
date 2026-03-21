@@ -16,6 +16,8 @@ class Settings(BaseSettings):
 
     ALLOWED_USERS_IDS: List[int]
 
+    TOTP_SECRET: str
+
     PIN_HASH: str
 
     # pydantic settings
