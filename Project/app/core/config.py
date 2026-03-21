@@ -6,11 +6,13 @@ from typing import List
 class Settings(BaseSettings):
     BOT_TOKEN: str
     BINGX_API_KEY: str
-    BINGX_SECRET_API: str
+
+    BINGX_SECRET_ENCRYPTED: str
+    ENCRYPTION_MASTER_KEY: str
 
     ALLOWED_USERS_IDS: List[int]
 
-    PIN_CODE: int
+    PIN_HASH: int
 
     # pydantic settings
     model_config = SettingsConfigDict(
