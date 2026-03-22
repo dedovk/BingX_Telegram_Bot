@@ -6,6 +6,7 @@ from loguru import logger
 from app.core.config import settings
 from app.core.security import verify_pin, verify_totp
 from app.bot.states import AuthState
+from app.bot.keyboards.reply import remove_menu, get_main_menu
 
 base_router = Router()
 
@@ -70,8 +71,10 @@ async def process_totp(message: types.Message, state: FSMContext):
     if is_valid:
         logger.info(
             f"User(ID: {message.from_user.id}, Username: {message.from_user.username}) passed 2FA.")
-        await message.answer("2FA passed.")
+        await message.answer("2FA passed. Choose an action in menu below: ",
+                             reply_markup=get_main_menu())
         await state.set_state(AuthState.unlocked)
+
     else:
         logger.warning(
             f"User(ID: {message.from_user.id}, Username: {message.from_user.username}) enter wrong TOTP code.")
@@ -84,4 +87,4 @@ async def cmd_lock(message: types.Message, state: FSMContext):
     logger.info(
         f"User(ID: {message.from_user.id}, Username: {message.from_user.username}) lock the bot")
     await state.clear()  # clear the states
-    await message.answer("Session locked.")
+    await message.answer("Session locked.", reply_markup=remove_menu())
