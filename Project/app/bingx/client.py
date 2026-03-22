@@ -1,5 +1,7 @@
 import ccxt.async_support as ccxt
+
 from loguru import logger
+from app.bingx.models import SpotBalance
 
 
 class BingXClient:
@@ -14,7 +16,7 @@ class BingXClient:
         })
 
     async def get_usdt_balance(self) -> float:
-        """get account balance(usdt)"""
+        """get account balance(usdt futures)"""
         try:
             logger.info("Request balance from BingX.")
 
@@ -30,6 +32,34 @@ class BingXClient:
             raise e
         except Exception as e:
             logger.exception(f"BingX balance retrieval error: {e}")
+            raise e
+
+    async def get_active_spot_balance(self) -> list[SpotBalance]:
+        """get spot balance"""
+        try:
+            logger.info("Request spot balance from BingX")
+
+            raw_balances = await self.exchange.fetch_balance({'type': 'spot'})
+
+            active_balances = []
+
+            for asset, data in raw_balances.items():
+                if asset in ['info', 'free', "used", 'total'] or not isinstance(data, dict):
+                    continue
+
+                free = float(data.get('free', 0.0))
+                locked = float(data.get('used', 0.0))
+
+                if free + locked > 0:
+                    active_balances.append(
+                        SpotBalance(asset=asset, free=free, locked=locked)
+                    )
+
+            logger.success(f"Got {len(active_balances)} active spot assets.")
+            return active_balances
+
+        except Exception as e:
+            logger.exception(f" BingX spot balance retrieval error: {e}")
             raise e
 
     async def close_connection(self):
