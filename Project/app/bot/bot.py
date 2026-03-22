@@ -5,9 +5,10 @@ from loguru import logger
 
 from app.core.config import settings
 from app.bot.middleware.auth import IDAuthMiddleware
-# import routers
+
 from app.bot.handlers.base import base_router
 from app.bot.handlers.wallet import wallet_router
+from app.core.logging import setup_logger
 
 bot = Bot(token=settings.BOT_TOKEN)
 dp = Dispatcher()
@@ -19,7 +20,10 @@ dp.include_routers(
 
 
 async def main():
+    setup_logger()
+
     logger.info("Bot is running.")
+
     dp.message.middleware(IDAuthMiddleware())
     await dp.start_polling(bot)
 
