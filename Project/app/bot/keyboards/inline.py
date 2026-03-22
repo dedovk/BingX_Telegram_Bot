@@ -25,3 +25,10 @@ def get_settings_keyboard() -> InlineKeyboardMarkup:
     builder.adjust(1, 1, 2, 1)
 
     return builder.as_markup()
+
+
+def get_back_to_settings_keyboard() -> InlineKeyboardMarkup:
+    """ """
+    builder = InlineKeyboardBuilder()
+    builder.button(text="Back to Settings", callback_data="settings_back")
+    return builder.as_markup()
