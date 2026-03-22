@@ -8,6 +8,7 @@ from app.bot.middleware.auth import IDAuthMiddleware
 
 from app.bot.handlers.base import base_router
 from app.bot.handlers.wallet import wallet_router
+from app.bot.handlers.settings import settings_router
 from app.core.logging import setup_logger
 
 bot = Bot(token=settings.BOT_TOKEN)
@@ -15,7 +16,8 @@ dp = Dispatcher()
 
 dp.include_routers(
     base_router,
-    wallet_router
+    wallet_router,
+    settings_router
 )
 
 
