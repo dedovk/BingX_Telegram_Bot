@@ -6,7 +6,7 @@ from loguru import logger
 from app.bot.states import AuthState
 from app.core.config import settings
 from app.core.security import decrypt_secret
-from app.bingx.client import BingXClient
+from app.bingx.factory import BingXClientFactory
 
 from app.bot.keyboards.reply import remove_menu
 from app.bot.keyboards.inline import get_refresh_keyboard
@@ -14,16 +14,9 @@ from app.bot.keyboards.inline import get_refresh_keyboard
 wallet_router = Router()
 
 
-def get_bingx_client() -> BingXClient:
-    clean_secret = decrypt_secret(
-        settings.BINGX_SECRET_ENCRYPTED,
-        settings.ENCRYPTION_MASTER_KEY
-    )
-
-    return BingXClient(
-        api_key=settings.BINGX_API_KEY,
-        secret_key=clean_secret
-    )
+def get_bingx_client():
+    """Get BingX client - uses factory to support live/sandbox modes."""
+    return BingXClientFactory.create()
 
 
 def generate_spot_portfolio_text(balances: list) -> str:
