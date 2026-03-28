@@ -17,11 +17,11 @@ from app.core.config import settings
 settings_router = Router()
 
 
-def base_settings_menu(user_id) -> str:
+def base_settings_menu(user_id: int, api_status: str = "Connected") -> str:
     text = (
         f"**Settings Menu**\n\n"
         f"Telegram ID: {user_id}\n"
-        f"API Status: Connected\n"
+        f"API Status: {api_status}\n"
         f"Choose an option below:"
     )
     return text
@@ -34,6 +34,9 @@ async def show_settings_menu(message: types.Message, state: FSMContext):
 
     logger.info(
         f"User(ID: {user_id}, Username: {message.from_user.username}) open settings menu.")
+
+    await state.clear()
+    await state.set_state(AuthState.unlocked)
 
     await message.answer(
         text=base_settings_menu(user_id),
@@ -63,17 +66,16 @@ async def process_settings_lock(callback: types.CallbackQuery, state: FSMContext
 @settings_router.callback_query(F.data == "settings_check_api", AuthState.unlocked)
 async def process_settings_check_api(callback: types.CallbackQuery):
     """ """
+    user_id = callback.from_user.id
     logger.info(
         f"User(ID: {callback.from_user.id}, Username: {callback.from_user.username}) checking API.")
 
     await callback.message.edit_text(
-        f"**Settings Menu**\n\n"
-        f"Telegram ID: {callback.from_user.id}\n"
-        f"API Status: Checking connection...\n"
-        f"Choose an option below:",
+        text=base_settings_menu(user_id, api_status="Checking Connection..."),
         reply_markup=get_settings_keyboard(),
         parse_mode="Markdown"
     )
+    client = None
 
     try:
         client = get_bingx_client()
@@ -81,16 +83,15 @@ async def process_settings_check_api(callback: types.CallbackQuery):
         await client.get_active_spot_balance()
         status_text = "Connected & Valid"
     except Exception as e:
-        logger.error(f"API check failed: {e}")
+        logger.error(
+            f"API check failed for User(ID: {user_id}, Username: {callback.from_user.username}): {e}")
         status_text = "Connection Error. Check keys."
     finally:
-        await client.close_connection()
+        if client:
+            await client.close_connection()
 
     await callback.message.edit_text(
-        f"------Settings Menu------\n\n"
-        f"Telegram ID: {callback.from_user.id}\n"
-        f"API Status: {status_text}\n"
-        f"Choose an option below:",
+        text=base_settings_menu(user_id, api_status=status_text),
         reply_markup=get_settings_keyboard(),
         parse_mode="Markdown"
     )
@@ -175,6 +176,7 @@ async def process_new_secret_key(message: types.Message, state: FSMContext):
             chat_id=message.chat.id,
             message_id=prompt_msg_id,
             text="**Success!** API Keys have been updated and securely saved.",
+            reply_markup=get_back_to_settings_keyboard(),
             parse_mode="Markdown")
 
     except Exception as e:
@@ -184,14 +186,15 @@ async def process_new_secret_key(message: types.Message, state: FSMContext):
             message_id=prompt_msg_id,
             text=("**Connection Error**\n"
                   "The keys you provided are invalid or lack permissions. Please try again."),
+            reply_markup=get_back_to_settings_keyboard(),
             parse_mode="Markdown"
         )
     finally:
         if client:
             await client.close_connection()
 
+        await state.clear()
         await state.set_state(AuthState.unlocked)
-        await state.update_data(new_api_key=None)
 
 
 @settings_router.callback_query(F.data == "settings_change_pin", AuthState.unlocked)
@@ -234,6 +237,7 @@ async def process_old_pin(message: types.Message, state: FSMContext):
         )
         logger.warning(
             f"User(ID: {message.from_user.id}, Username: {message.from_user.username}), Incorrect PIN code. .")
+        await state.clear()
         await state.set_state(AuthState.unlocked)
         return
 
@@ -391,6 +395,7 @@ async def process_settings_back(callback: types.CallbackQuery, state: FSMContext
     """ """
     logger.info(
         f"User(ID: {callback.from_user.id}, Username: {callback.from_user.username}) cancel an action.")
+    await state.clear()
     await state.set_state(AuthState.unlocked)
     user_id = callback.from_user.id
     text = base_settings_menu(user_id)

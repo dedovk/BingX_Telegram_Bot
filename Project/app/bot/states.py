@@ -8,6 +8,7 @@ class AuthState(StatesGroup):
 
 
 class SettingsState(StatesGroup):
+    unlocked = State()
     waiting_for_api_key = State()  # bot waiting for enter api key
     waiting_for_secret_key = State()  # bot waiting for enter secret key
 
