@@ -292,12 +292,95 @@ async def process_new_pin(message: types.Message, state: FSMContext):
             parse_mode="Markdown"
         )
     finally:
+        await state.clear()
+        await state.set_state(AuthState.unlocked)
+
+
+@settings_router.callback_query(F.data == "settings_reset_2fa", AuthState.unlocked)
+async def process_reset_2fa_start(callback: types.CallbackQuery, state: FSMContext):
+    """catch the 'Reset 2FA' button click and ask for the PIN"""
+    await state.set_state(SettingsState.waiting_for_pin_for_2fa)
+    await state.update_data(prompt_msg_id=callback.message.message_id)
+
+    logger.info(
+        f"User(ID: {callback.from_user.id}, Username: {callback.from_user.username}) initiated 2FA reset.")
+
+    await callback.message.edit_text(
+        "**Reset 2FA**\n\n"
+        "To reset your Two-Factor Authentication, please enter your **PIN code** first to verify your identity.\n\n"
+        "*(You can cancel this action by pressing the button below)*",
+        reply_markup=get_back_to_settings_keyboard(),
+        parse_mode="Markdown"
+    )
+    await callback.answer()
+
+
+@settings_router.message(SettingsState.waiting_for_pin_for_2fa)
+async def process_pin_for_2fa(message: types.Message, state: FSMContext):
+
+    entered_pin = message.text.strip()
+    await message.delete()
+
+    data = await state.get_data()
+    prompt_msg_id = data.get("prompt_msg_id")
+
+    is_valid = verify_pin(entered_pin, settings.PIN_HASH)
+
+    if not is_valid:
+        await message.bot.edit_message_text(
+            chat_id=message.chat.id,
+            message_id=prompt_msg_id,
+            text="**Access denied** \n Incorrect PIN code. Action cancelled.",
+            reply_markup=get_back_to_settings_keyboard(),
+            parse_mode="Markdown"
+        )
+        logger.warning(
+            f"User(ID: {message.from_user.id}, Username: {message.from_user.username}), Incorrect PIN code. .")
+        await state.clear()
+        await state.set_state(AuthState.unlocked)
+        return
+
+    try:
+        new_totp_secret = pyotp.random_base32()
+
+        dotenv.set_key(".env", "TOTP_SECRET", new_totp_secret)
+
+        settings.TOTP_SECRET = new_totp_secret
+
+        await message.bot.edit_message_text(
+            chat_id=message.chat.id,
+            message_id=prompt_msg_id,
+            text=(
+                " **2FA Reset Successful**\n\n"
+                "Please add the following **Setup Key** to your Authenticator app (Google Authenticator, Authy, etc.):\n\n"
+                f"`{new_totp_secret}`\n\n"
+                "*(Tap the key above to copy it)*\n\n"
+                "⚠️ **Important:** Do not lose this key! You will need it to unlock the bot."
+            ),
+            reply_markup=get_back_to_settings_keyboard(),
+            parse_mode="Markdown"
+        )
+        logger.success(
+            f"User(ID: {message.from_user.id}, Username: {message.from_user.username}), reset their 2FA secret.")
+    except Exception as e:
+        logger.error(
+            f"Failed to reset 2FA for User(ID: {message.from_user.id}, Username: {message.from_user.username}): {e}")
+        await message.bot.edit_message_text(
+            chat_id=message.chat.id,
+            message_id=prompt_msg_id,
+            text="**Error!** \n Could not reset 2FA.",
+            reply_markup=get_back_to_settings_keyboard(),
+            parse_mode="Markdown"
+        )
+    finally:
+        await state.clear()
         await state.set_state(AuthState.unlocked)
 
 
 @settings_router.callback_query(
     F.data == "settings_back",
     StateFilter(
+        SettingsState.unlocked,
         SettingsState.waiting_for_api_key,
         SettingsState.waiting_for_secret_key,
         SettingsState.waiting_for_old_pin,

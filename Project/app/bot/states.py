@@ -14,3 +14,4 @@ class SettingsState(StatesGroup):
     waiting_for_old_pin = State()  # bot waiting for enter old pin
     waiting_for_new_pin = State()  # bot waiting for enter new pin
 
+    waiting_for_pin_for_2fa = State()
