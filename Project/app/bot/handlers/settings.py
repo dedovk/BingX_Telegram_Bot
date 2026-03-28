@@ -5,6 +5,7 @@ Specific functionality is delegated to specialized service modules following SOL
 - API settings: api_settings.py
 - PIN settings: pin_settings.py  
 - Security settings (2FA): security_settings.py
+- Trading mode: trading_mode.py
 """
 from aiogram.filters import StateFilter
 from aiogram import Router, F, types
@@ -20,6 +21,7 @@ from app.bot.services import SettingsService
 from .api_settings import api_settings_router
 from .pin_settings import pin_settings_router
 from .security_settings import security_settings_router
+from .trading_mode import trading_mode_router
 
 settings_router = Router()
 
@@ -27,6 +29,7 @@ settings_router = Router()
 settings_router.include_router(api_settings_router)
 settings_router.include_router(pin_settings_router)
 settings_router.include_router(security_settings_router)
+settings_router.include_router(trading_mode_router)
 
 
 def _format_settings_menu(user_id: int, api_status: str = "Connected") -> str:

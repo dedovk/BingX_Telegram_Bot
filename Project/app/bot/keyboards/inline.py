@@ -18,11 +18,12 @@ def get_settings_keyboard() -> InlineKeyboardMarkup:
 
     builder.button(text="Update API keys", callback_data="settings_update_api")
     builder.button(text="Check API status", callback_data="settings_check_api")
+    builder.button(text="Trading Mode", callback_data="settings_trading_mode")
     builder.button(text="Change PIN", callback_data="settings_change_pin")
     builder.button(text="Reset 2FA", callback_data="settings_reset_2fa")
     builder.button(text="Lock bot", callback_data="settings_lock")
 
-    builder.adjust(1, 1, 2, 1)
+    builder.adjust(1, 1, 1, 1, 2)
 
     return builder.as_markup()
 
