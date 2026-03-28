@@ -10,3 +10,7 @@ class AuthState(StatesGroup):
 class SettingsState(StatesGroup):
     waiting_for_api_key = State()  # bot waiting for enter api key
     waiting_for_secret_key = State()  # bot waiting for enter secret key
+
+    waiting_for_old_pin = State()  # bot waiting for enter old pin
+    waiting_for_new_pin = State()  # bot waiting for enter new pin
+

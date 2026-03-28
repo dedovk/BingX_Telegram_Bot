@@ -1,4 +1,5 @@
 import dotenv
+import pyotp
 
 from aiogram.filters import StateFilter
 from aiogram import Router, F, types
@@ -9,7 +10,7 @@ from app.bot.states import AuthState, SettingsState
 from app.bot.keyboards.inline import get_settings_keyboard, get_back_to_settings_keyboard
 from app.bot.keyboards.reply import remove_menu
 from app.bot.handlers.wallet import get_bingx_client
-from app.core.security import encrypt_secret
+from app.core.security import encrypt_secret, hash_pin, verify_pin
 from app.bingx.client import BingXClient
 from app.core.config import settings
 
@@ -193,7 +194,116 @@ async def process_new_secret_key(message: types.Message, state: FSMContext):
         await state.update_data(new_api_key=None)
 
 
-@settings_router.callback_query(F.data == "settings_back", StateFilter(SettingsState.waiting_for_api_key, SettingsState.waiting_for_secret_key))
+@settings_router.callback_query(F.data == "settings_change_pin", AuthState.unlocked)
+async def process_change_pin_start(callback: types.CallbackQuery, state: FSMContext):
+
+    await state.set_state(SettingsState.waiting_for_old_pin)
+    await state.update_data(prompt_msg_id=callback.message.message_id)
+
+    logger.info(
+        f"User(ID: {callback.from_user.id}, Username: {callback.from_user.username}) changing PIN.")
+
+    await callback.message.edit_text(
+        "**Change PIN code**\n\n"
+        "For security reasons, please enter your **CURRENT PIN** first.\n\n"
+        "*(You can cancel this action by pressing the button below)*",
+        reply_markup=get_back_to_settings_keyboard(),
+        parse_mode="Markdown"
+    )
+    await callback.answer()
+
+
+@settings_router.message(SettingsState.waiting_for_old_pin)
+async def process_old_pin(message: types.Message, state: FSMContext):
+
+    entered_pin = message.text.strip()
+    await message.delete()
+
+    data = await state.get_data()
+    prompt_msg_id = data.get("prompt_msg_id")
+
+    is_valid = verify_pin(entered_pin, settings.PIN_HASH)
+
+    if not is_valid:
+        await message.bot.edit_message_text(
+            chat_id=message.chat.id,
+            message_id=prompt_msg_id,
+            text="**Access denied** \n Incorrect PIN code. Action cancelled.",
+            reply_markup=get_back_to_settings_keyboard(),
+            parse_mode="Markdown"
+        )
+        logger.warning(
+            f"User(ID: {message.from_user.id}, Username: {message.from_user.username}), Incorrect PIN code. .")
+        await state.set_state(AuthState.unlocked)
+        return
+
+    await state.set_state(SettingsState.waiting_for_new_pin)
+    await message.bot.edit_message_text(
+        chat_id=message.chat.id,
+        message_id=prompt_msg_id,
+        text="**Identity verified** \nNow, enter your **NEW PIN**\n",
+        reply_markup=get_back_to_settings_keyboard(),
+        parse_mode="Markdown",
+    )
+
+
+@settings_router.message(SettingsState.waiting_for_new_pin)
+async def process_new_pin(message: types.Message, state: FSMContext):
+
+    new_pin = message.text.strip()
+    await message.delete()
+
+    data = await state.get_data()
+    prompt_msg_id = data.get("prompt_msg_id")
+
+    if not new_pin.isdigit() or not (4 <= len(new_pin) <= 6):
+        await message.bot.edit_message_text(
+            chat_id=message.chat.id,
+            message_id=prompt_msg_id,
+            text="**Invalid format** \n Pin must contain only 4 to 6 numbers. Try again.",
+            reply_markup=get_back_to_settings_keyboard(),
+            parse_mode="Markdown"
+        )
+        return
+
+    try:
+        hashed_new_pin = hash_pin(new_pin)
+
+        dotenv.set_key(".env", "PIN_HASH", hashed_new_pin)
+
+        settings.PIN_HASH = hashed_new_pin
+
+        await message.bot.edit_message_text(
+            chat_id=message.chat.id,
+            message_id=prompt_msg_id,
+            text="**Success!** \n Your PIN has been securely updated. \n Write it down in a safe place.",
+            reply_markup=get_back_to_settings_keyboard(),
+            parse_mode="Markdown"
+        )
+        logger.success(
+            f"User(ID: {message.from_user.id}, Username: {message.from_user.username}) changed their PIN")
+    except Exception as e:
+        logger.error(
+            f"User(ID: {message.from_user.id}, Username: {message.from_user.username}), Failed to save new PIN: {e}")
+        await message.bot.edit_message_text(
+            chat_id=message.chat.id,
+            message_id=prompt_msg_id,
+            text="**Error!** \n Could not save the new PIN.",
+            parse_mode="Markdown"
+        )
+    finally:
+        await state.set_state(AuthState.unlocked)
+
+
+@settings_router.callback_query(
+    F.data == "settings_back",
+    StateFilter(
+        SettingsState.waiting_for_api_key,
+        SettingsState.waiting_for_secret_key,
+        SettingsState.waiting_for_old_pin,
+        SettingsState.waiting_for_new_pin,
+        SettingsState.waiting_for_pin_for_2fa
+    ))
 async def process_settings_back(callback: types.CallbackQuery, state: FSMContext):
     """ """
     logger.info(
