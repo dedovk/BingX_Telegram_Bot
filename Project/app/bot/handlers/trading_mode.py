@@ -88,12 +88,12 @@ async def process_switch_to_live(callback: types.CallbackQuery, state: FSMContex
 async def process_trading_mode_back(callback: types.CallbackQuery, state: FSMContext):
     """Handle back button from trading mode menu - return to main settings menu."""
     from app.bot.keyboards.inline import get_settings_keyboard
-    
+
     user_id = callback.from_user.id
     SettingsService.log_user_action(
         user_id, callback.from_user.username, "returned from trading mode menu"
     )
-    
+
     # Get settings menu text
     api_status = "Connected"  # Default status
     settings_text = (
@@ -102,7 +102,7 @@ async def process_trading_mode_back(callback: types.CallbackQuery, state: FSMCon
         f"API Status: {api_status}\n"
         f"Choose an option below:"
     )
-    
+
     await callback.message.edit_text(
         text=settings_text,
         reply_markup=get_settings_keyboard(),
