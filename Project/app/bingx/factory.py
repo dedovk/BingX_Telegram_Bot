@@ -36,7 +36,7 @@ class BingXClientFactory:
             secret_encrypted, settings.ENCRYPTION_MASTER_KEY)
 
         mode = "Sandbox" if is_sandbox else "Live"
-        logger.info(f"Creating BingX client for {mode} mode")
+        logger.debug(f"Creating BingX client for {mode} mode")
 
         return BingXClient(
             api_key=api_key,

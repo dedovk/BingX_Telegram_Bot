@@ -25,7 +25,7 @@ class BingXClient:
         })
 
         mode = "Sandbox" if is_sandbox else "Live"
-        logger.info(f"BingX client initialized in {mode} mode")
+        logger.debug(f"BingX client initialized in {mode} mode")
 
     async def get_usdt_balance(self) -> float:
         """get account balance(usdt futures)"""

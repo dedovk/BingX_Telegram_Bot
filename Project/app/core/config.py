@@ -9,18 +9,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 class Settings(BaseSettings):
     BOT_TOKEN: str
-    
+
     # Trading mode: "live" or "sandbox"
     TRADING_MODE: str = "live"
-    
+
     # Live mode credentials
     BINGX_API_KEY: str
     BINGX_SECRET_ENCRYPTED: str
-    
+
     # Sandbox mode credentials (optional - can use same as live if not provided)
     BINGX_SANDBOX_API_KEY: str = ""
     BINGX_SANDBOX_SECRET_ENCRYPTED: str = ""
-    
+
     ENCRYPTION_MASTER_KEY: str
     ALLOWED_USERS_IDS: List[int]
     TOTP_SECRET: str
