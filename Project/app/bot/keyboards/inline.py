@@ -23,7 +23,7 @@ def get_settings_keyboard() -> InlineKeyboardMarkup:
     builder.button(text="Reset 2FA", callback_data="settings_reset_2fa")
     builder.button(text="Lock bot", callback_data="settings_lock")
 
-    builder.adjust(1, 1, 1, 1, 2)
+    builder.adjust(1, 1, 1, 2, 1)
 
     return builder.as_markup()
 

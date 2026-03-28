@@ -14,13 +14,13 @@ trading_mode_router = Router()
 async def show_trading_mode_menu(callback: types.CallbackQuery, state: FSMContext):
     """Show trading mode information and switching options."""
     user_id = callback.from_user.id
-    
+
     SettingsService.log_user_action(
         user_id, callback.from_user.username, "accessed trading mode menu"
     )
-    
+
     mode_info = TradingModeService.get_mode_info()
-    
+
     await callback.message.edit_text(
         text=mode_info,
         reply_markup=_get_trading_mode_keyboard(),
@@ -33,9 +33,9 @@ async def show_trading_mode_menu(callback: types.CallbackQuery, state: FSMContex
 async def process_switch_to_sandbox(callback: types.CallbackQuery, state: FSMContext):
     """Switch to sandbox/demo mode."""
     user_id = callback.from_user.id
-    
+
     success, message = await TradingModeService.switch_trading_mode("sandbox")
-    
+
     if success:
         SettingsService.log_user_action(
             user_id, callback.from_user.username, "switched to sandbox mode"
@@ -59,14 +59,14 @@ async def process_switch_to_sandbox(callback: types.CallbackQuery, state: FSMCon
 async def process_switch_to_live(callback: types.CallbackQuery, state: FSMContext):
     """Switch to live mode - with confirmation."""
     user_id = callback.from_user.id
-    
+
     await callback.answer(
         text="⚠️ You are about to switch to LIVE trading mode. Be careful!",
         show_alert=True
     )
-    
+
     success, message = await TradingModeService.switch_trading_mode("live")
-    
+
     if success:
         SettingsService.log_user_action(
             user_id, callback.from_user.username, "switched to LIVE mode"
@@ -82,6 +82,33 @@ async def process_switch_to_live(callback: types.CallbackQuery, state: FSMContex
             reply_markup=_get_trading_mode_keyboard(),
             parse_mode="Markdown"
         )
+
+
+@trading_mode_router.callback_query(F.data == "settings_back", AuthState.unlocked)
+async def process_trading_mode_back(callback: types.CallbackQuery, state: FSMContext):
+    """Handle back button from trading mode menu - return to main settings menu."""
+    from app.bot.keyboards.inline import get_settings_keyboard
+    
+    user_id = callback.from_user.id
+    SettingsService.log_user_action(
+        user_id, callback.from_user.username, "returned from trading mode menu"
+    )
+    
+    # Get settings menu text
+    api_status = "Connected"  # Default status
+    settings_text = (
+        f"**Settings Menu**\n\n"
+        f"Telegram ID: {user_id}\n"
+        f"API Status: {api_status}\n"
+        f"Choose an option below:"
+    )
+    
+    await callback.message.edit_text(
+        text=settings_text,
+        reply_markup=get_settings_keyboard(),
+        parse_mode="Markdown"
+    )
+    await callback.answer("Returned to settings.")
 
 
 def _get_trading_mode_keyboard() -> types.InlineKeyboardMarkup:
