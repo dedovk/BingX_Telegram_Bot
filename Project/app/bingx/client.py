@@ -6,14 +6,26 @@ from app.bingx.models import SpotBalance
 
 class BingXClient:
 
-    def __init__(self, api_key: str, secret_key: str):
-        """initialization bingx async client"""
+    def __init__(self, api_key: str, secret_key: str, is_sandbox: bool = False):
+        """
+        Initialize BingX async client.
+
+        Args:
+            api_key: BingX API key
+            secret_key: BingX secret key
+            is_sandbox: If True, use sandbox/demo trading mode
+        """
+        self.is_sandbox = is_sandbox
         self.exchange = ccxt.bingx({
             'apiKey': api_key,
             'secret': secret_key,
             'enableRateLimit': True,
-            'options': {'defaultType': 'swap'}  # swap - futures / spot - spot
+            'options': {'defaultType': 'swap'},  # swap - futures / spot - spot
+            'sandbox': is_sandbox  # Enable sandbox mode if needed
         })
+
+        mode = "Sandbox" if is_sandbox else "Live"
+        logger.info(f"BingX client initialized in {mode} mode")
 
     async def get_usdt_balance(self) -> float:
         """get account balance(usdt futures)"""
