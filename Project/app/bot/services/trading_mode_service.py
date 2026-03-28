@@ -47,6 +47,11 @@ class TradingModeService(SettingsService):
                 "TRADING_MODE", "TRADING_MODE", new_mode
             )
 
+            # Reset BingX client cache for new mode
+            from app.bingx.client_manager import BingXClientManager
+            manager = BingXClientManager.get_instance()
+            manager.reset_client()
+
             mode_display = TradingModeService.get_mode_display_name()
             logger.info(f"Trading mode switched to: {mode_display}")
 

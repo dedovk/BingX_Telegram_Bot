@@ -4,9 +4,7 @@ from datetime import datetime
 from loguru import logger
 
 from app.bot.states import AuthState
-from app.core.config import settings
-from app.core.security import decrypt_secret
-from app.bingx.factory import BingXClientFactory
+from app.bingx.client_manager import BingXClientManager
 
 from app.bot.keyboards.reply import remove_menu
 from app.bot.keyboards.inline import get_refresh_keyboard
@@ -15,8 +13,9 @@ wallet_router = Router()
 
 
 def get_bingx_client():
-    """Get BingX client - uses factory to support live/sandbox modes."""
-    return BingXClientFactory.create()
+    """Get BingX client from manager - uses caching."""
+    manager = BingXClientManager.get_instance()
+    return manager.get_client()
 
 
 def generate_spot_portfolio_text(balances: list) -> str:
